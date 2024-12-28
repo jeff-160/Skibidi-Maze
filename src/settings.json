@@ -1,0 +1,11 @@
+{
+    "gridSize": 30,
+    
+    "wallWidth": 5, 
+    "wallHeight": 15,
+
+    "playerWidth": 2,
+    "playerHeight": 7,
+
+    "toiletSpeed": 0.3
+}
