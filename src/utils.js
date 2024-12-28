@@ -65,8 +65,10 @@ function RandElem(list) {
 }
 
 function StopAudio(src) {
-    assets[src].pause()
-    assets[src].currentTime = 0
+    try {
+        assets[src].pause()
+        assets[src].currentTime = 0
+    } catch {}
 }
 
 function PlayAudio(src, loop = false) {
@@ -92,4 +94,8 @@ function IsAudioPlaying(src) {
         !assets[src].paused && 
         !assets[src].ended
     )
+}
+
+async function Delay(interval) {
+    return new Promise(resolve => setTimeout(resolve, interval))
 }

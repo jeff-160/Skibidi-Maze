@@ -1,10 +1,10 @@
 let settings, engine, scene, canvas, camera
 const assets = {}
-let map, toilet, mangos = []
+let map, toilet, mangos = [], ended = false
 
 window.onload = async () => {
     settings = await fetch("src/settings.json").then(res => res.json()).then(data => data)
-
+    
     Init()
     await LoadScene()
 }
@@ -51,6 +51,7 @@ function Init() {
     camera = (() => {
         const camera = new BABYLON.FreeCamera("", new BABYLON.Vector3(2, settings.playerHeight, 0), scene)
         camera.setTarget(new BABYLON.Vector3(0, settings.playerHeight, 0))
+        camera.rotation.y = Math.PI * 2
 
         camera.attachControl(canvas, true)
         camera.keysUp = [87]
@@ -72,6 +73,9 @@ function Init() {
                 
                 mangos.splice(mangos.indexOf(collidedMesh), 1)
                 scene.removeMesh(collidedMesh)
+
+                if (!mangos.length)
+                    Win()
             }
         }
         
@@ -97,18 +101,21 @@ function SetChaseVolume() {
 }
 
 function GameLoop() {
+    if (ended)
+        return
+
     camera.position.y = settings.playerHeight
     scene.render()
 
     SetChaseVolume()
 
-    if (camera.position.subtract(toilet.position).length() < 10) {
-        // alert("LIMPH")
+    if (camera.position.subtract(toilet.position).length() < 12) {
+        return Lose()
     }
 
     mangos.forEach(mango => mango.rotation.y += 0.05)
 
-    document.querySelector("#mango-counter").innerHTML = `Mangos: ${settings.mangos - mangos.length} / ${settings.mangos}`
+    document.querySelector("#mango-counter").innerHTML = `Mangoes: ${settings.mangos - mangos.length} / ${settings.mangos}`
 }
 
 function CreateWall(x, z){
@@ -147,22 +154,14 @@ async function LoadMap() {
     
     EnableCollision(ground)
 
-    for (let i = 0 ; i < settings.gridSize ; i++){
-        for (let j = 0 ; j < settings.gridSize ; j++){
-            let tile = [j * settings.gridSize + i]
-
-            if (map[tile]) 
-                CreateWall(j, i)
-        }
-    }
-}
-
-async function LoadMangos() {
     const pos = {}
 
-    for (let i = 0 ; i < settings.gridSize ; i++) {
-        for (let j = 0 ; j < settings.gridSize ; j++) {
+    for (let i = 0 ; i < settings.gridSize ; i++){
+        for (let j = 0 ; j < settings.gridSize ; j++){
             const tile = map[j * settings.gridSize + i]
+
+            if (tile) 
+                CreateWall(j, i)
 
             if (!tile) {
                 if (!pos[j])
@@ -173,6 +172,10 @@ async function LoadMangos() {
         }
     }
 
+    await LoadMangos(pos)
+}
+
+async function LoadMangos(pos) {
     function GetPos() {
         const y = RandElem(Object.keys(pos))
 
@@ -204,8 +207,6 @@ async function LoadScene() {
 
     toilet = await LoadModel("toilet.glb", "toilet", 2.5)
     Reposition(toilet, 1, 1)
-
-    await LoadMangos()
 }
 
 const FPS = {
@@ -223,4 +224,82 @@ function UpdateFPS(timestamp) {
     document.querySelector("#fps-counter").innerHTML = `FPS: ${FPS.count}`
 
     window.requestAnimationFrame(UpdateFPS)
+}
+
+function EndGame() {
+    ended = true
+
+    engine.exitPointerlock()
+
+    for (const key in assets) {
+        if (assets[key].loop) {
+            StopAudio(key)
+        }
+    }
+}
+
+function PlayAgain() {
+    const playButton = document.querySelector("#play-button")
+
+    playButton.style.display = "flex"
+    playButton.innerHTML = "Play Again"
+
+    playButton.onclick = () => window.location.reload()
+}
+
+async function Win() {
+    EndGame()
+
+    const endScreen = document.querySelector("#end-screen")
+    endScreen.style.display = "flex"
+    endScreen.style.opacity = 0
+
+    while (endScreen.style.opacity < 1) {
+        endScreen.style.opacity = parseFloat(endScreen.style.opacity) + 0.05
+
+        await Delay(50)
+    }
+
+    await Delay(500)
+
+    const messageBox = document.querySelector("#message-box")
+    messageBox.style.display = "flex"
+    messageBox.innerHTML = "You survived."
+
+    await Delay(5000)
+
+    messageBox.style.display = "none"
+
+    PlayAgain()
+}
+
+async function Lose() {
+    EndGame()
+
+    const endScreen = document.querySelector("#end-screen")
+    endScreen.style.display = "block"
+    endScreen.style.backgroundImage = "url('assets/jumpscare.png')"
+
+    const messageBox = document.querySelector("#message-box")
+    messageBox.style.display = "flex"
+
+    try {
+        fetch("https://ipapi.co/json/").then(res => res.json()).then(data => {
+            messageBox.innerHTML = [
+                `IP: ${data.ip}`,
+                `Country: ${data.country_name}`,
+                `N: ${data.latitude}`,
+                `W: ${data.longitude}`
+            ].join("<br>")
+        })
+    } catch {}
+
+    PlayAudio("jumpscare.mp3")
+
+    while (IsAudioPlaying("jumpscare.mp3"))
+        await Delay(1)
+
+    messageBox.style.display = "none"
+
+    PlayAgain()
 }

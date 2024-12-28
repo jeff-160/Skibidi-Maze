@@ -28,6 +28,9 @@ function Chase(nodes, index = 0){
         return FindRoute()
 
 	Travel = setInterval(() => {
+		if (ended)
+			return
+
 		let angle = Math.atan2(
 			nodes[index].y - toilet.position.x,
 			nodes[index].x - toilet.position.z,
