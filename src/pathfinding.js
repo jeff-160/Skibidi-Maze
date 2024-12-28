@@ -1,5 +1,3 @@
-let Travel
-
 function FindRoute(){
 	defineNodes({
 		position:{
@@ -12,30 +10,32 @@ function FindRoute(){
 			z: camera.position.z + (settings.wallWidth * settings.gridSize)/2,
 		}
 	})
-
+	
 	let nodes = Solve_AStar()
 	nodes.forEach(i => {
 		i.x = i.x * settings.wallWidth - (settings.wallWidth * settings.gridSize)/2
 		i.y = i.y * settings.wallWidth - (settings.wallWidth * settings.gridSize)/2
 	})
-
+	
     if (nodes.length)
     	Chase(nodes)
 }
 
-function Chase(nodes, index=0){
+let Travel = null
+
+function Chase(nodes, index = 0){
 	if (index >= nodes.length) 
         return FindRoute()
 
-	Travel = setInterval(()=>{
+	Travel = setInterval(() => {
 		let angle = Math.atan2(
-			nodes[index].y-toilet.position.x,
-			nodes[index].x-toilet.position.z,
+			nodes[index].y - toilet.position.x,
+			nodes[index].x - toilet.position.z,
 		)
 
 		let velocity = {
-			x: Math.cos(angle)*settings.toiletSpeed,
-			z: Math.sin(angle)*settings.toiletSpeed
+			x: Math.cos(angle) * settings.toiletSpeed,
+			z: Math.sin(angle) * settings.toiletSpeed
 		}
 
 		toilet.rotation.y = angle
@@ -43,8 +43,8 @@ function Chase(nodes, index=0){
 		toilet.position.z += velocity.x
 
 		if (
-			Math.abs(nodes[index].y-toilet.position.x)<=settings.toiletSpeed &&
-			Math.abs(nodes[index].x-toilet.position.z)<=settings.toiletSpeed 
+			Math.abs(nodes[index].y - toilet.position.x) <= settings.toiletSpeed &&
+			Math.abs(nodes[index].x - toilet.position.z) <= settings.toiletSpeed 
 		){
 			clearInterval(Travel)
 			Chase(nodes, index+1)
@@ -55,7 +55,6 @@ function Chase(nodes, index=0){
 
 function RayCast(){
 	let direction = toilet.position.subtract(camera.position)
-	let ray = new BABYLON.Ray(camera.position, direction, settings.gridSize*settings.wallWidth ) 
-	let hit = Game.Scene.pickWithRay(ray)
-	return hit.pickedMesh.name == "toilet"
+	let ray = new BABYLON.Ray(camera.position, direction, settings.gridSize * settings.wallWidth) 
+	return scene.pickWithRay(ray).pickedMesh.name == "toilet"
 }

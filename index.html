@@ -11,12 +11,18 @@
     <script src="lib/babylonjs.loaders.min.js"></script>
 </head>
 <body>
-    <canvas width="1280" height="593" id="game-canvas"></canvas>
-    <div id="fps-counter"></div>
+    <div class="centered" id="game-container">
+        <canvas class="centered" width="1280" height="593" id="game-canvas"></canvas>
+        <div class="text-gui" id="fps-counter"></div>
+        <div class="text-gui" id="mango-counter"></div>
+
+        <div class="text-gui centered" id="play-button" onclick="StartGame()">Play</div>
+    </div>
 
     <script src="src/utils.js"></script>
     <script src="src/astar.js"></script>
     <script src="src/pathfinding.js"></script>
+    <script src="src/events.js"></script>
     <script src="src/main.js"></script>
 </body>
 </html>

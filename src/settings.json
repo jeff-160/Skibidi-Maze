@@ -1,11 +1,13 @@
 {
     "gridSize": 30,
     
-    "wallWidth": 5, 
+    "wallWidth": 7, 
     "wallHeight": 15,
 
-    "playerWidth": 2,
+    "playerWidth": 3,
     "playerHeight": 7,
 
-    "toiletSpeed": 0.3
+    "toiletSpeed": 0.3,
+    
+    "mangos": 5
 }

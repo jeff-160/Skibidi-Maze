@@ -7,8 +7,28 @@ window.onload = async () => {
 
     Init()
     await LoadScene()
+}
+
+function StartGame() {
+    document.querySelector("#play-button").style.display = "none"
+    
+    scene.onPointerDown = e => {
+        if (e.button == 0) 
+            engine.enterPointerlock()   
+    }
 
     engine.runRenderLoop(GameLoop)
+    engine.enterPointerlock()
+
+    FindRoute()
+    setInterval(()=>{
+        if (RayCast()){
+            clearInterval(Travel)
+            FindRoute()
+        }
+    }, 2000)
+
+    PlayAudio("chase.mp3", true)
 
     window.requestAnimationFrame(UpdateFPS)
 }
@@ -21,11 +41,6 @@ function Init() {
     scene = (() => {
         const scene = new BABYLON.Scene(engine)
         scene.clearColor = new BABYLON.Color3.Black()
-        
-        scene.onPointerDown = e => {
-            if (e.button == 0) 
-                engine.enterPointerlock()   
-        }
 
         scene.autoClearDepthAndStencil = false
         scene.blockMaterialDirtyMechanism = true
@@ -35,7 +50,7 @@ function Init() {
 
     camera = (() => {
         const camera = new BABYLON.FreeCamera("", new BABYLON.Vector3(2, settings.playerHeight, 0), scene)
-        camera.setTarget(new BABYLON.Vector3.Zero())
+        camera.setTarget(new BABYLON.Vector3(0, settings.playerHeight, 0))
 
         camera.attachControl(canvas, true)
         camera.keysUp = [87]
@@ -47,27 +62,53 @@ function Init() {
         camera.inertia = 0.1
         camera.angularSensibility = 800
 
-        camera.setTarget(new BABYLON.Vector3(0, settings.playerHeight, 0))
-
         camera.ellipsoid = new BABYLON.Vector3(...Array(3).fill(settings.playerWidth))
 
 		EnableCollision(camera)
+
+        camera.onCollide = collidedMesh => {
+            if (collidedMesh.name == "mango") {
+                PlayAudio("mango.mp3")
+                
+                mangos.splice(mangos.indexOf(collidedMesh), 1)
+                scene.removeMesh(collidedMesh)
+            }
+        }
         
         return camera
     })()
 
-    const light = new BABYLON.SpotLight("", new BABYLON.Vector3(0, 0, 0), new BABYLON.Vector3(0, 0, 1), Math.PI, 50, scene)
+    const light = new BABYLON.SpotLight("", new BABYLON.Vector3(0, 0, 0), new BABYLON.Vector3(0, 0, 1), Math.PI, 100, scene)
     const hLight = new BABYLON.HemisphericLight("", camera.position, scene)
     light.parent = hLight.parent = camera
     light.intensity = 0.5
-    hLight.intensity = 1//0.3
+    hLight.intensity = 0.2
+}
+
+function SetChaseVolume() {
+    let dist = Math.sqrt(
+		Math.pow(Math.abs(toilet.position.z - camera.position.z), 2) +
+		Math.pow(Math.abs(toilet.position.x - camera.position.x), 2)
+	)
+
+    const tiles = Math.max(1, Math.min(dist / settings.wallWidth, 10))
+
+	assets["chase.mp3"].volume = 1 - tiles / 10
 }
 
 function GameLoop() {
     camera.position.y = settings.playerHeight
     scene.render()
 
+    SetChaseVolume()
+
+    if (camera.position.subtract(toilet.position).length() < 10) {
+        // alert("LIMPH")
+    }
+
     mangos.forEach(mango => mango.rotation.y += 0.05)
+
+    document.querySelector("#mango-counter").innerHTML = `Mangos: ${settings.mangos - mangos.length} / ${settings.mangos}`
 }
 
 function CreateWall(x, z){
@@ -76,14 +117,10 @@ function CreateWall(x, z){
             width: settings.wallWidth,
             depth: settings.wallWidth,
             height: settings.wallHeight,
-            faceUV: Array(6).map(_ => [0, 0, 1, 1]),
             wrap: true
         }, scene)
     
-        let material = new BABYLON.StandardMaterial("", scene)
-        material.diffuseTexture = new BABYLON.Texture("assets/wall.png")
-        material.bumpTexture = new BABYLON.Texture("assets/wallmap.png")
-        wall.material = material
+        ApplyTexture(wall, "wall")
 
         assets["wall"] = wall
 
@@ -91,9 +128,8 @@ function CreateWall(x, z){
     }
 
     const clone = assets["wall"].createInstance()
-    
-    clone.position.x = (x * settings.wallWidth) - settings.gridSize * settings.wallWidth / 2
-    clone.position.z = (z * settings.wallWidth) - settings.gridSize * settings.wallWidth / 2
+
+    Reposition(clone, x, z)
     clone.position.y = scene.getMeshByName("ground").position.y + settings.wallHeight / 2
 
     EnableCollision(clone)
@@ -107,12 +143,9 @@ async function LoadMap() {
         height: settings.gridSize * settings.wallWidth,
     }, scene)
 
+    ApplyTexture(ground, "ground")
+    
     EnableCollision(ground)
-
-    let material = new BABYLON.StandardMaterial("", scene)
-    material.diffuseTexture = new BABYLON.Texture("assets/soil.jpg", scene)
-    material.bumpTexture = new BABYLON.Texture("assets/soilmap.png", scene)
-    ground.material = material
 
     for (let i = 0 ; i < settings.gridSize ; i++){
         for (let j = 0 ; j < settings.gridSize ; j++){
@@ -124,16 +157,55 @@ async function LoadMap() {
     }
 }
 
+async function LoadMangos() {
+    const pos = {}
+
+    for (let i = 0 ; i < settings.gridSize ; i++) {
+        for (let j = 0 ; j < settings.gridSize ; j++) {
+            const tile = map[j * settings.gridSize + i]
+
+            if (!tile) {
+                if (!pos[j])
+                    pos[j] = []
+
+                pos[j].push(i)
+            }
+        }
+    }
+
+    function GetPos() {
+        const y = RandElem(Object.keys(pos))
+
+        const index = RandInt(0, pos[y].length - 1)
+        const x = pos[y][index]
+
+        pos[y].splice(index, 1)
+        
+        if (!pos[y].length)
+            delete pos[y]
+        
+        return [x, y].map(i => +i)
+    }
+
+    for (let i = 0 ; i < settings.mangos ; i++) {
+        const mango = await LoadModel("mango.glb", "mango", 1.5)
+                
+        Reposition(mango, ...GetPos())
+        mango.position.y = 1.5
+
+        mango.rotation.y = ToRadians(RandInt(0, 360))
+        
+        mangos.push(mango)
+    }
+}
+
 async function LoadScene() {
     await LoadMap()
 
-    toilet = await LoadModel("toilet.glb", 2.5)
+    toilet = await LoadModel("toilet.glb", "toilet", 2.5)
+    Reposition(toilet, 1, 1)
 
-    const mango = await LoadModel("mango.glb", 1.5)
-    mango.position.x = 5
-    mango.position.y = 1.5
-
-    mangos.push(mango)
+    await LoadMangos()
 }
 
 const FPS = {
@@ -152,10 +224,3 @@ function UpdateFPS(timestamp) {
 
     window.requestAnimationFrame(UpdateFPS)
 }
-
-window.addEventListener("keyup", e => {
-    if (e.key == " ") {
-        FindRoute()
-        draw()
-    }
-})
