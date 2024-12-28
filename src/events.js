@@ -5,8 +5,8 @@ const keys = {
     "d": false
 }
 
-window.addEventListener("keydown", (e)=>{
-	if (!engine.isPointerLock) 
+window.addEventListener("keydown", e => {
+	if (!engine?.isPointerLock) 
         return
 
     const key = e.key.toLowerCase()
@@ -20,8 +20,8 @@ window.addEventListener("keydown", (e)=>{
     }
 })
 
-window.addEventListener("keyup", (e)=>{
-	if (!engine.isPointerLock) 
+window.addEventListener("keyup", e => {
+	if (!engine?.isPointerLock) 
         return
     
     const key = e.key.toLowerCase()
