@@ -9,9 +9,6 @@ async function LoadModel(file, name, scaling = 1) {
             
             meshes[0].rotationQuarternion = null
             meshes[0].rotation = new BABYLON.Vector3(0, Math.PI / 2, 0)
-            
-            meshes[0].position.y = -0.5
-            meshes[0].position.z = 3
     
             meshes.forEach(mesh => {
                 if (mesh?.material instanceof BABYLON.PBRMaterial) {
